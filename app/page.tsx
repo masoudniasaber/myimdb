@@ -1,48 +1,85 @@
+'use client'
+
+import { useEffect, useState } from 'react';
+
+type Event = {
+  name: string;
+  url: string;
+  dates: { start: { localDate: string; localTime?: string } };
+  images: { url: string }[];
+  _embedded?: { venues: { name: string; city: { name: string } }[] };
+};
+
 export default function Home() {
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const API_KEY = 'z1rylS0iiI3FFQUoVDclcuD4yfjRK8wp';
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const res = await fetch(
+          `https://app.ticketmaster.com/discovery/v2/events.json?countryCode=NZ&size=40&apikey=${API_KEY}`
+        );
+        const data = await res.json();
+
+        // Deduplicate by event name
+        const uniqueMap = new Map();
+        (data._embedded?.events || []).forEach((event: Event) => {
+          if (!uniqueMap.has(event.name)) {
+            uniqueMap.set(event.name, event);
+          }
+        });
+
+        setEvents(Array.from(uniqueMap.values()));
+      } catch (err) {
+        console.error('Error fetching events:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEvents();
+  }, []);
+
   return (
-    <main className="bg-white text-gray-900 min-h-screen">
-      {/* Header */}
-      <header className="border-b shadow-sm px-6 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold tracking-tight">🎟 GoTicketNow</h1>
-        <nav>
-          <ul className="flex gap-4 text-sm font-medium text-gray-600">
-            <li><a href="#" className="hover:text-black">Home</a></li>
-            <li><a href="#" className="hover:text-black">Events</a></li>
-            <li><a href="#" className="hover:text-black">About</a></li>
-            <li><a href="#" className="hover:text-black">Contact</a></li>
-          </ul>
-        </nav>
-      </header>
+    <main className="min-h-screen bg-gray-50 px-6 py-12 text-gray-900">
+      <h1 className="text-4xl font-bold text-center mb-10">
+        🎟️ GoTicketNow – Live Events in NZ
+      </h1>
 
-      {/* Hero Section */}
-      <section className="text-center py-16 px-6 bg-gray-50">
-        <h2 className="text-4xl font-bold mb-4">Find Your Next Live Experience</h2>
-        <p className="text-lg text-gray-600 mb-6">
-          Discover concerts, sports, theatre and more — powered by the Ticketmaster API.
-        </p>
-        <a
-          href="#events"
-          className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition"
-        >
-          Browse Events
-        </a>
-      </section>
-
-      {/* Featured Events */}
-      <section id="events" className="py-12 px-6 max-w-5xl mx-auto">
-        <h3 className="text-2xl font-semibold mb-6 text-center">Featured Events</h3>
+      {loading ? (
+        <p className="text-center text-lg">Loading events...</p>
+      ) : events.length === 0 ? (
+        <p className="text-center text-lg text-gray-600">No events found.</p>
+      ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Array.from({ length: 6 }).map((_, i) => (
+          {events.map((event, i) => (
             <div
               key={i}
               className="bg-white border rounded-lg shadow hover:shadow-md transition"
             >
-              <div className="h-40 bg-gray-200 rounded-t-lg"></div>
+              <img
+                src={event.images[0]?.url}
+                alt={event.name}
+                className="w-full h-48 object-cover rounded-t-lg"
+              />
               <div className="p-4">
-                <h4 className="font-semibold text-lg mb-1">Sample Event {i + 1}</h4>
-                <p className="text-sm text-gray-600 mb-2">Auckland • July 2025</p>
+                <h2 className="text-lg font-semibold mb-1">{event.name}</h2>
+                <p className="text-sm text-gray-600">
+                  📍 {event._embedded?.venues?.[0]?.name},{" "}
+                  {event._embedded?.venues?.[0]?.city?.name}
+                </p>
+                <p className="text-sm text-gray-500 my-1">
+                  🗓 {new Date(
+                    event.dates.start.localDate +
+                      'T' +
+                      (event.dates.start.localTime || '00:00')
+                  ).toLocaleString()}
+                </p>
                 <a
-                  href="#"
+                  href={event.url}
+                  target="_blank"
                   className="text-sm text-blue-600 font-medium hover:underline"
                 >
                   View Tickets →
@@ -51,12 +88,7 @@ export default function Home() {
             </div>
           ))}
         </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t py-6 text-center text-sm text-gray-500 mt-12">
-        &copy; {new Date().getFullYear()} GoTicketNow — Built with the Ticketmaster API
-      </footer>
+      )}
     </main>
   );
 }
