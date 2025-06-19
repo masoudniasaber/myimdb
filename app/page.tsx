@@ -13,40 +13,55 @@ type Event = {
 export default function Home() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [country, setCountry] = useState('NZ');
+
   const API_KEY = 'z1rylS0iiI3FFQUoVDclcuD4yfjRK8wp';
 
+  const fetchEvents = async (selectedCountry: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `https://app.ticketmaster.com/discovery/v2/events.json?countryCode=${selectedCountry}&classificationName=Music&sort=date,asc&size=40&apikey=${API_KEY}`
+      );
+      const data = await res.json();
+
+      const uniqueMap = new Map();
+      (data._embedded?.events || []).forEach((event: Event) => {
+        if (!uniqueMap.has(event.name)) {
+          uniqueMap.set(event.name, event);
+        }
+      });
+
+      setEvents(Array.from(uniqueMap.values()));
+    } catch (err) {
+      console.error('Error fetching events:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const res = await fetch(
-          `https://app.ticketmaster.com/discovery/v2/events.json?countryCode=NZ&size=40&apikey=${API_KEY}`
-        );
-        const data = await res.json();
-
-        // Deduplicate by event name
-        const uniqueMap = new Map();
-        (data._embedded?.events || []).forEach((event: Event) => {
-          if (!uniqueMap.has(event.name)) {
-            uniqueMap.set(event.name, event);
-          }
-        });
-
-        setEvents(Array.from(uniqueMap.values()));
-      } catch (err) {
-        console.error('Error fetching events:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchEvents();
-  }, []);
+    fetchEvents(country);
+  }, [country]);
 
   return (
     <main className="min-h-screen bg-gray-50 px-6 py-12 text-gray-900">
-      <h1 className="text-4xl font-bold text-center mb-10">
-        🎟️ GoTicketNow – Live Events in NZ
-      </h1>
+      <div className="flex flex-col items-center mb-10">
+        <h1 className="text-4xl font-bold mb-2 text-center">
+          🎟️ GoTicketNow – Live Music Events
+        </h1>
+        <p className="text-sm text-gray-600 mb-4">Powered by Ticketmaster</p>
+
+        <select
+          value={country}
+          onChange={(e) => setCountry(e.target.value)}
+          className="px-4 py-2 border rounded-md shadow-sm text-sm"
+        >
+          <option value="NZ">🇳🇿 New Zealand</option>
+          <option value="AU">🇦🇺 Australia</option>
+          <option value="US">🇺🇸 United States</option>
+        </select>
+      </div>
 
       {loading ? (
         <p className="text-center text-lg">Loading events...</p>
